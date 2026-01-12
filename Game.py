@@ -6,24 +6,7 @@ import queue
 from sympy import isprime, divisors
 
 
-# -----------------------------------------------------------------------------
-# SETTINGS & COLORS
-# -----------------------------------------------------------------------------
 
-def render_crew_ui():
-    print("\n" * 50)
-    print(f"{BOLD}{MAGENTA}=== CREW QUARTERS ==={RESET}")
-    for i, m in enumerate(game_state["crew"]):
-        if m["level"] == 0:
-            print(f" {i + 1}. {RED}🔒 {m['name']}{RESET} (LOCKED)")
-            print(f"    Unlock Cost: {YELLOW}{m['unlock_cost']:.2f}💎{RESET}")
-        else:
-            current_prod = m["base_pps"] * m["level"]
-            upgrade_cost = 50.0 * (m["level"] ** 1.5)
-            print(
-                f" {i + 1}. {BOLD}{m['name']}{RESET} | Lvl: {YELLOW}{m['level']}{RESET} | Prod: {GREEN}+{current_prod:.2f}/sec{RESET}")
-            print(f"    Next Level: {YELLOW}{upgrade_cost:.2f}💎{RESET}")
-    print(f"\n Type {BOLD}upgrade [number]{RESET} or {BOLD}back{RESET}.")
 
 
 # -----------------------------------------------------------------------------
@@ -38,9 +21,11 @@ MAGENTA = "\033[95m"
 RESET = "\033[0m"
 BOLD = "\033[1m"
 
+MINER_COST = 5000.0
+
 game_state: dict[str, Any] = {
     "running": True,
-    "points": 3000.0,
+    "points": 10000.0,
     "points_per_sec": 1.0,
     "mode": "idle",
     "area_mode": "prime",
@@ -50,9 +35,8 @@ game_state: dict[str, Any] = {
     "unlocked_areas": ["prime"],
     "area_costs": {"binary": 200.0, "multi": 3000.0},
     "crew": [
-        {"name": "Miner Alpha", "level": 0, "base_pps": 0.5, "unlock_cost": 5000.0},
-        {"name": "Miner Beta", "level": 0, "base_pps": 0.5, "unlock_cost": 10000.0}
-    ]
+            {"name": "Miner 1", "level": 0, "base_pps": 50, "unlock_cost": MINER_COST}
+        ]
 }
 
 commands = queue.Queue()
@@ -171,6 +155,20 @@ def render():
     print(f"\n{BOLD}Commands:{RESET} crew, status, quit")
     print("-" * 30)
 
+def render_crew_ui():
+    print("\n" * 50)
+    print(f"{BOLD}{MAGENTA}=== CREW QUARTERS ==={RESET}")
+    for i, m in enumerate(game_state["crew"]):
+        if m["level"] == 0:
+            print(f" {i + 1}. {RED}🔒 {m['name']}{RESET} (LOCKED)")
+            print(f"    Unlock Cost: {YELLOW}{m['unlock_cost']:.2f}💎{RESET}")
+        else:
+            current_prod = m["base_pps"] * m["level"]
+            upgrade_cost = 5000.0 * (m["level"] ** 1.5)
+            print(
+                f" {i + 1}. {BOLD}{m['name']}{RESET} | Lvl: {YELLOW}{m['level']}{RESET} | Prod: {GREEN}+{current_prod:.2f}/sec{RESET}")
+            print(f"    Next Level: {YELLOW}{upgrade_cost:.2f}💎{RESET}")
+    print(f"\n Type {BOLD}upgrade [number]{RESET} or {BOLD}back{RESET}.")
 
 def process_commands():
     while not commands.empty():
@@ -224,7 +222,7 @@ def process_commands():
                         print(f" {CYAN}Tip:{RESET} The binary for {number} is {BOLD}{correct_answer}{RESET}.")
                     elif game_state["area_mode"] == "multi":
                         print(
-                            f" {CYAN}Tip:{RESET} {number[0]}x{number[1]}={correct_answer} \n You didn't find any multipliers.")
+                            f" {CYAN}Tip:{RESET} {number[0]}x{number[1]}={correct_answer} \n")
 
                 game_state["current_puzzle"] = None
                 game_state["mode"] = "idle"
@@ -273,12 +271,22 @@ def process_commands():
                         cost = miner["unlock_cost"]
                         action = "UNLOCK"
                     else:
-                        cost = 50.0 * (miner["level"] ** 1.5)
+                        cost = 5000.0 * (miner["level"] ** 1.5)
                         action = "UPGRADE"
 
                     if game_state["points"] >= cost:
                         game_state["points"] -= cost
                         miner["level"] += 1
+
+                        if action == "UNLOCK":
+                            next_id = len(game_state["crew"]) + 1
+                            next_miner = {
+                                "name": f"Miner {next_id}",
+                                "level": 0,
+                                "base_pps": 50,
+                                "unlock_cost": MINER_COST * next_id
+                            }
+                            game_state["crew"].append(next_miner)
 
                         print(f" {GREEN}✔ {action} SUCCESS!{RESET} {miner['name']} is Level {miner['level']}.")
                     else:
@@ -325,7 +333,9 @@ def process_commands():
                     time.sleep(2)
                     render()
                 else:
-                    print(f" {RED}✘ LOCKED!{RESET} Need {YELLOW}{cost - game_state['points']:.2f}💎{RESET}")
+                    print(f" {RED}✘ LOCKED!{RESET} Need {YELLOW}{cost - game_state['points']:.2f}💎{RESET} more")
+                    time.sleep(1)
+                    render()
 
             elif command == "multi":
                 cost = game_state["area_costs"]["multi"]
@@ -344,7 +354,9 @@ def process_commands():
                     time.sleep(2)
                     render()
                 else:
-                    print(f" {RED}✘ LOCKED!{RESET} Need {YELLOW}{cost - game_state['points']:.2f}💎{RESET}")
+                    print(f" {RED}✘ LOCKED!{RESET} Need {YELLOW}{cost - game_state['points']:.2f}💎{RESET} more")
+                    time.sleep(1)
+                    render()
             elif command == "status":
                 render()
             elif command == "quit":
